@@ -51,6 +51,8 @@ If the server is running inside Docker or any other sandboxed environment, you c
 script using `--command` to be run whenever the server should be restarted. Make sure the server log file is accessible
 on disk and that the watchdog has appropriate permissions to read it.
 
+See [example scripts][examples].
+
 ### Watchdog script
 
 ```sh
@@ -118,4 +120,5 @@ MIT license. See [LICENSE][license] for more information.
 [ets2-dedicated-server]: https://modding.scssoft.com/wiki/Documentation/Tools/Dedicated_Server
 [virtualenv]: https://virtualenv.pypa.io/en/latest/
 [venv]: https://docs.python.org/3/library/venv.html
+[examples]: https://github.com/alexitx/ets2-server-watchdog/tree/master/examples
 [license]: https://github.com/alexitx/ets2-server-watchdog/blob/master/LICENSE
