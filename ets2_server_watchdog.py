@@ -4,6 +4,7 @@ __version__ = '0.1.0'
 import argparse
 import logging
 import os
+import re
 import shlex
 import signal
 import subprocess
@@ -147,6 +148,8 @@ def main():
     server_steam_disconnected = False
     server_steam_disconnected_time = 0
 
+    regex_steam_disconnected = re.compile(r'^[\d\:\.]+ : \[MP\] Steam disconnected')
+
     tail = start_tail(log_file)
 
     signal.signal(signal.SIGINT, lambda *_: stop_tail(tail))
@@ -167,7 +170,7 @@ def main():
             elif line.endswith('[MP] Session running.\n'):
                 log.info('Server started')
                 server_hanging = False
-            elif line.endswith('[MP] Steam disconnected, no connection. Auto reconnect will start within 10.0 seconds.\n'):
+            elif regex_steam_disconnected.match(line):
                 log.info('Server lost connection to Steam')
                 server_steam_disconnected = True
                 server_steam_disconnected_time = time.time()
