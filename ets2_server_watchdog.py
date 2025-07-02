@@ -90,6 +90,7 @@ def main():
     parser.add_argument('--version', action='version', version=f'ets2-server-watchdog {__version__}')
     parser.add_argument('--debug', action='store_true', help='Log debug messages')
     parser.add_argument('--debug-tail', action='store_true', help='If debug is enabled, also log tail command output')
+    parser.add_argument('--server-log', required=True, help='Server log file')
     parser.add_argument(
         '--hang-timeout',
         default=1.0,
@@ -118,7 +119,6 @@ def main():
         '--command',
         help='Custom shell command to run instead of finding and stopping the server process'
     )
-    parser.add_argument('server_log', help='Server log file')
     args = parser.parse_args()
 
     if args.hang_timeout < 1.0:
@@ -140,8 +140,8 @@ def main():
 
     setup_logging(args.debug)
 
-    log_file = Path(args.server_log).resolve()
-    log.info(f"Server log file: '{log_file}'")
+    server_log_file = Path(args.server_log).resolve()
+    log.info(f"Server log file: '{server_log_file}'")
 
     server_hanging = False
     server_hang_time = 0
@@ -150,7 +150,7 @@ def main():
 
     regex_steam_disconnected = re.compile(r'^[\d\:\.]+ : \[MP\] Steam disconnected')
 
-    tail = start_tail(log_file)
+    tail = start_tail(server_log_file)
 
     signal.signal(signal.SIGINT, lambda *_: stop_tail(tail))
     signal.signal(signal.SIGTERM, lambda *_: stop_tail(tail))
@@ -188,7 +188,7 @@ def main():
                 log.info(f"Running '{command}'")
                 subprocess.run(command_args)
             else:
-                find_and_stop_server_process(log_file, args.stop_timeout, True)
+                find_and_stop_server_process(server_log_file, args.stop_timeout, True)
 
         elif server_steam_disconnected and time.time() - server_steam_disconnected_time > args.reconnect_timeout:
             log.info(f'Server did not reconnect to Steam within {args.reconnect_timeout}s')
@@ -198,7 +198,7 @@ def main():
                 log.info(f"Running '{command}'")
                 subprocess.run(command_args)
             else:
-                find_and_stop_server_process(log_file, args.stop_timeout)
+                find_and_stop_server_process(server_log_file, args.stop_timeout)
 
         time.sleep(args.monitor_interval)
 
