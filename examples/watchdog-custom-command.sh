@@ -6,4 +6,4 @@ SERVER_DIR="$HOME/servers/ets2-server"
 LOG_FILE="$SERVER_DIR/Euro Truck Simulator 2/server.log.txt"
 
 # Example with Docker container named 'ets2-server'
-python3 ets2_server_watchdog.py --command 'docker restart ets2-server' "$LOG_FILE"
+python3 ets2_server_watchdog.py --server-log "$LOG_FILE" --command 'docker restart ets2-server'
