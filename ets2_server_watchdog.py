@@ -43,7 +43,7 @@ def stop_tail(tail_process):
 
 def find_server_process(log_file):
     for process in psutil.process_iter():
-        if process.info.name() != 'eurotrucks2_server':
+        if process.name() != 'eurotrucks2_server':
             continue
 
         open_files = process.open_files()
