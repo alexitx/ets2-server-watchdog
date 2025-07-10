@@ -148,6 +148,7 @@ def main():
     server_steam_disconnected = False
     server_steam_disconnected_time = 0
 
+    regex_steam_logon = re.compile(r'^[\d\:\.]+ : \[MP\] LogOn')
     regex_steam_disconnected = re.compile(r'^[\d\:\.]+ : \[MP\] Steam disconnected')
 
     tail = start_tail(server_log_file)
@@ -170,6 +171,10 @@ def main():
             elif line.endswith('[MP] Session running.\n'):
                 log.info('Server started')
                 server_hanging = False
+            elif regex_steam_logon.match(line):
+                log.info('Server is logging into Steam')
+                server_steam_disconnected = True
+                server_steam_disconnected_time = time.time()
             elif regex_steam_disconnected.match(line):
                 log.info('Server lost connection to Steam')
                 server_steam_disconnected = True
