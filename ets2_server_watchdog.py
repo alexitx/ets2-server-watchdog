@@ -148,8 +148,11 @@ def main():
     server_steam_disconnected = False
     server_steam_disconnected_time = 0
 
-    regex_steam_logon = re.compile(r'^[\d\:\.]+ : \[MP\] LogOn')
-    regex_steam_disconnected = re.compile(r'^[\d\:\.]+ : \[MP\] Steam disconnected')
+    server_initializing_re = re.compile(r'^[\d\:\.]+ : \[MP\] Init steam game server params')
+    server_started_re = re.compile(r'^[\d\:\.]+ : \[MP\] Session running')
+    steam_logon_re = re.compile(r'^[\d\:\.]+ : \[MP\] LogOn')
+    steam_disconnected_re = re.compile(r'^[\d\:\.]+ : \[MP\] Steam disconnected')
+    steam_connected_re = re.compile(r'^[\d\:\.]+ : \[MP\] Steam connected')
 
     tail = start_tail(server_log_file)
 
@@ -164,22 +167,22 @@ def main():
             if args.debug_tail:
                 log.debug(line)
 
-            if line.endswith('[MP] Init steam game server params\n'):
+            if server_initializing_re.match(line):
                 log.info('Server is initializing')
                 server_hanging = True
                 server_hang_time = time.time()
-            elif line.endswith('[MP] Session running.\n'):
+            elif server_started_re.match(line):
                 log.info('Server started')
                 server_hanging = False
-            elif regex_steam_logon.match(line):
+            elif steam_logon_re.match(line):
                 log.info('Server is logging into Steam')
                 server_steam_disconnected = True
                 server_steam_disconnected_time = time.time()
-            elif regex_steam_disconnected.match(line):
+            elif steam_disconnected_re.match(line):
                 log.info('Server lost connection to Steam')
                 server_steam_disconnected = True
                 server_steam_disconnected_time = time.time()
-            elif line.endswith('[MP] Steam connected\n'):
+            elif steam_connected_re.match(line):
                 log.info('Server connected to Steam')
                 server_steam_disconnected = False
 
