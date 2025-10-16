@@ -117,7 +117,7 @@ def main():
     )
     parser.add_argument(
         '--command',
-        help='Custom shell command to run instead of finding and stopping the server process'
+        help='Custom command to run instead of finding and stopping the server process'
     )
     args = parser.parse_args()
 
