@@ -4,13 +4,13 @@ __version__ = '0.4.0'
 import argparse
 import logging
 import os
+import pathlib
 import re
 import shlex
 import signal
 import subprocess
 import sys
 import time
-from pathlib import Path
 
 import psutil
 
@@ -137,7 +137,7 @@ def main():
 
     setup_logging(args.debug)
 
-    server_log_path = Path(args.server_log).resolve()
+    server_log_path = pathlib.Path(args.server_log).resolve()
 
     if args.command is not None:
         try:
