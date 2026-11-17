@@ -90,34 +90,39 @@ def main():
     parser.add_argument('--version', action='version', version=f'ets2-server-watchdog {__version__}')
     parser.add_argument('--debug', action='store_true', help='Log debug messages')
     parser.add_argument('--debug-tail', action='store_true', help='If debug is enabled, also log tail command output')
-    parser.add_argument('--server-log', required=True, help='Server log file')
+    parser.add_argument('--server-log', required=True, help='Server log file', metavar='<file>')
     parser.add_argument(
         '--hang-timeout',
         default=1.0,
         type=float,
-        help='Time in seconds for the server to hang on initialization before being killed'
+        help='Time in seconds for the server to hang on initialization before being killed',
+        metavar='<sec>'
     )
     parser.add_argument(
         '--reconnect-timeout',
         default=300.0,
         type=float,
-        help='Time in seconds for the server to reconnect to Steam before being stopped'
+        help='Time in seconds for the server to reconnect to Steam before being stopped',
+        metavar='<sec>'
     )
     parser.add_argument(
         '--stop-timeout',
         default=5.0,
         type=float,
-        help='Time in seconds for the server to stop gracefully before being killed'
+        help='Time in seconds for the server to stop gracefully before being killed',
+        metavar='<sec>'
     )
     parser.add_argument(
         '--monitor-interval',
         default=0.25,
         type=float,
-        help='Interval in seconds for monitoring log line changes; Should be < other timeout values, usually < 1s'
+        help='Interval in seconds for monitoring log line changes; Should be < other timeout values, usually < 1s',
+        metavar='<sec>'
     )
     parser.add_argument(
         '--command',
-        help='Custom command to run instead of finding and stopping the server process'
+        help='Custom command to run instead of finding and stopping the server process',
+        metavar='<string>'
     )
     args = parser.parse_args()
 
@@ -128,20 +133,22 @@ def main():
     if args.stop_timeout < 1.0:
         parser.error('--stop-timeout: Value cannot be lower than 1.0')
 
-    custom_command = args.command is not None
-    if custom_command:
-        command = args.command.strip()
-        if not command:
-            parser.error('--command: Invalid value')
-        try:
-            command_args = shlex.split(command)
-        except ValueError as e:
-            parser.error(f'--command: Invalid value: {e}')
+    # Done parsing arguments
 
     setup_logging(args.debug)
 
-    server_log_file = Path(args.server_log).resolve()
-    log.info(f"Server log file: '{server_log_file}'")
+    server_log_path = Path(args.server_log).resolve()
+
+    if args.command is not None:
+        try:
+            command_args = shlex.split(args.command) or None
+        except ValueError as e:
+            log.error(f"Error parsing command: {e}")
+            os.exit(1)
+    else:
+        command_args = None
+
+    log.info(f"Server log file: '{server_log_path}'")
 
     server_hanging = False
     server_hang_time = 0
@@ -154,7 +161,7 @@ def main():
     steam_disconnected_re = re.compile(r'^[\d\:\.]+ : \[MP\] Steam disconnected')
     steam_connected_re = re.compile(r'^[\d\:\.]+ : \[MP\] Steam connected')
 
-    tail = start_tail(server_log_file)
+    tail = start_tail(server_log_path)
 
     signal.signal(signal.SIGINT, lambda *_: stop_tail(tail))
     signal.signal(signal.SIGTERM, lambda *_: stop_tail(tail))
@@ -192,21 +199,21 @@ def main():
             log.info(f'Server is hanging for longer than {args.hang_timeout}s')
             server_hanging = False
 
-            if custom_command:
-                log.info(f"Running '{command}'")
+            if command_args is not None:
+                log.info(f"Running {command_args}")
                 subprocess.run(command_args)
             else:
-                find_and_stop_server_process(server_log_file, args.stop_timeout, True)
+                find_and_stop_server_process(server_log_path, args.stop_timeout, True)
 
         elif server_steam_disconnected and time.time() - server_steam_disconnected_time > args.reconnect_timeout:
             log.info(f'Server did not reconnect to Steam within {args.reconnect_timeout}s')
             server_steam_disconnected = False
 
-            if custom_command:
-                log.info(f"Running '{command}'")
+            if command_args is not None:
+                log.info(f"Running {command_args}")
                 subprocess.run(command_args)
             else:
-                find_and_stop_server_process(server_log_file, args.stop_timeout)
+                find_and_stop_server_process(server_log_path, args.stop_timeout)
 
         time.sleep(args.monitor_interval)
 
