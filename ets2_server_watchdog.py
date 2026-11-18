@@ -145,7 +145,7 @@ def main() -> None:
             command_args = shlex.split(args.command) or None
         except ValueError as e:
             log.error(f"Error parsing command: {e}")
-            os.exit(1)
+            sys.exit(1)
     else:
         command_args = None
 
