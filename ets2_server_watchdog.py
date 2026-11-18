@@ -1,5 +1,4 @@
-__version__ = '0.4.0'
-
+from __future__ import annotations
 
 import argparse
 import logging
@@ -15,15 +14,17 @@ import time
 import psutil
 
 
+__version__ = '0.4.0'
+
 log = logging.getLogger('ets2-server-watchdog')
 
 
-def setup_logging(debug=False):
+def setup_logging(debug: bool = False) -> None:
     level = logging.INFO if not debug else logging.NOTSET
     logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
 
 
-def start_tail(log_file):
+def start_tail(log_file: str | os.PathLike) -> subprocess.Popen:
     log.debug('Starting tail process')
     process = subprocess.Popen(
         ('tail', '-F', '-n', '0', '--retry', '--', str(log_file)),
@@ -35,13 +36,13 @@ def start_tail(log_file):
     return process
 
 
-def stop_tail(tail_process):
+def stop_tail(tail_process: subprocess.Popen) -> None:
     log.debug('Stopping tail process')
     tail_process.terminate()
     tail_process.wait()
 
 
-def find_server_process(log_file):
+def find_server_process(log_file: str | os.PathLike) -> psutil.Process | None:
     for process in psutil.process_iter():
         if process.name() != 'eurotrucks2_server':
             continue
@@ -57,7 +58,7 @@ def find_server_process(log_file):
     return None
 
 
-def stop_server_process(process, timeout, kill=False):
+def stop_server_process(process: psutil.Process, timeout: float, kill: bool = False) -> None:
     log.debug(f'Stopping server process, {timeout=}, {kill=}')
     if kill:
         process.kill()
@@ -71,7 +72,7 @@ def stop_server_process(process, timeout, kill=False):
         process.wait()
 
 
-def find_and_stop_server_process(log_file, timeout, kill=False):
+def find_and_stop_server_process(log_file: str | os.PathLike, timeout: float, kill: bool = False) -> None:
     log.info('Searching for server process')
     process = find_server_process(log_file)
     if process is None:
@@ -81,7 +82,7 @@ def find_and_stop_server_process(log_file, timeout, kill=False):
     stop_server_process(process, timeout, kill)
 
 
-def main():
+def main() -> None:
     if sys.platform != 'linux':
         print('Only Linux platform is supported')
         sys.exit(1)
