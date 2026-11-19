@@ -94,7 +94,7 @@ def main() -> None:
     parser.add_argument('--server-log', required=True, help='Server log file', metavar='<file>')
     parser.add_argument(
         '--hang-timeout',
-        default=1.0,
+        default=3.0,
         type=float,
         help='Time in seconds for the server to hang on initialization before being killed',
         metavar='<sec>'
