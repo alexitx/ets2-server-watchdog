@@ -10,6 +10,7 @@ import signal
 import subprocess
 import sys
 import time
+import types
 
 import psutil
 
@@ -17,6 +18,15 @@ import psutil
 __version__ = '0.4.0'
 
 log = logging.getLogger('ets2-server-watchdog')
+
+exit_ = False
+
+
+def format_exc(exc: BaseException) -> str:
+    message = str(exc)
+    if message:
+        return f'{type(exc).__name__}: {message}'
+    return type(exc).__name__
 
 
 def setup_logging(debug: bool = False) -> None:
@@ -38,8 +48,11 @@ def start_tail(log_file: str | os.PathLike) -> subprocess.Popen:
 
 def stop_tail(tail_process: subprocess.Popen) -> None:
     log.debug('Stopping tail process')
-    tail_process.terminate()
-    tail_process.wait()
+    try:
+        tail_process.kill()
+        tail_process.wait()
+    except OSError as e:
+        log.error(f'Error killing tail process: {format_exc(e)}')
 
 
 def find_server_process(log_file: str | os.PathLike) -> psutil.Process | None:
@@ -47,11 +60,16 @@ def find_server_process(log_file: str | os.PathLike) -> psutil.Process | None:
         if process.name() != 'eurotrucks2_server':
             continue
 
-        open_files = process.open_files()
-        if open_files is not None and str(log_file) in (of.path for of in open_files):
+        try:
+            open_files = process.open_files()
+        except (psutil.Error, OSError) as e:
+            log.debug(f"Error getting file descriptors of process PID: {process.pid}: {format_exc(e)}")
+            continue
+
+        if str(log_file) in (of.path for of in open_files):
             log.debug(
-                f"Server process found, PID: {process.pid}, Executable: {process.exe()} "
-                f"Command line: {process.cmdline()}"
+                f"Server process found, PID: {process.pid}, executable: '{process.exe()}' "
+                f"command line: {process.cmdline()}"
             )
             return process
 
@@ -59,17 +77,33 @@ def find_server_process(log_file: str | os.PathLike) -> psutil.Process | None:
 
 
 def stop_server_process(process: psutil.Process, timeout: float, kill: bool = False) -> None:
-    log.debug(f'Stopping server process, {timeout=}, {kill=}')
+    log.debug(f'Stopping server process, timeout: {timeout}, kill: {kill}')
+
     if kill:
-        process.kill()
-    else:
-        process.terminate()
+        try:
+            process.kill()
+        except psutil.NoSuchProcess:
+            pass
+        except (psutil.Error, OSError) as e:
+            log.error(f'Error killing server process: {format_exc(e)}')
+
+        return
+
     try:
+        process.terminate()
         process.wait(timeout)
+        return
+    except psutil.NoSuchProcess:
+        return
     except psutil.TimeoutExpired:
         log.warning(f'Server did not stop within {timeout}s, killing process')
+    except (psutil.Error, OSError) as e:
+        log.error(f'Error terminating server process: {format_exc(e)}')
+
+    try:
         process.kill()
-        process.wait()
+    except (psutil.Error, OSError) as e:
+        log.error(f'Error killing server process: {format_exc(e)}')
 
 
 def find_and_stop_server_process(log_file: str | os.PathLike, timeout: float, kill: bool = False) -> None:
@@ -78,8 +112,25 @@ def find_and_stop_server_process(log_file: str | os.PathLike, timeout: float, ki
     if process is None:
         log.error('Server process not found')
         return
+
     log.info(f"{'Killing' if kill else 'Stopping'} server process")
     stop_server_process(process, timeout, kill)
+
+
+def run_command(args: list[str]) -> None:
+    log.info(f'Running {args}')
+    try:
+        result = subprocess.run(args)
+    except OSError as e:
+        log.error(f'Error running command: {format_exc(e)}')
+        return
+    log.info(f'Command exited with status code: {result.returncode}')
+
+
+def exit_handler(signum: int, frame: types.FrameType | None) -> None:
+    log.debug(f'Received {signal.Signals(signum).name}')
+    global exit_
+    exit_ = True
 
 
 def main() -> None:
@@ -138,6 +189,9 @@ def main() -> None:
 
     setup_logging(args.debug)
 
+    signal.signal(signal.SIGINT, exit_handler)
+    signal.signal(signal.SIGTERM, exit_handler)
+
     server_log_path = pathlib.Path(args.server_log).resolve()
 
     if args.command is not None:
@@ -162,14 +216,15 @@ def main() -> None:
     steam_disconnected_re = re.compile(r'^[\d\:\.]+ : \[MP\] Steam disconnected')
     steam_connected_re = re.compile(r'^[\d\:\.]+ : \[MP\] Steam connected')
 
-    tail = start_tail(server_log_path)
-
-    signal.signal(signal.SIGINT, lambda *_: stop_tail(tail))
-    signal.signal(signal.SIGTERM, lambda *_: stop_tail(tail))
+    try:
+        tail = start_tail(server_log_path)
+    except OSError as e:
+        log.error(f'Error starting tail process: {format_exc(e)}')
+        sys.exit(1)
 
     log.info('Monitoring')
 
-    while tail.poll() is None:
+    while not exit_ and tail.poll() is None:
         line = tail.stdout.readline()
         if line:
             if args.debug_tail:
@@ -201,8 +256,7 @@ def main() -> None:
             server_hanging = False
 
             if command_args is not None:
-                log.info(f"Running {command_args}")
-                subprocess.run(command_args)
+                run_command(command_args)
             else:
                 find_and_stop_server_process(server_log_path, args.stop_timeout, True)
 
@@ -211,12 +265,13 @@ def main() -> None:
             server_steam_disconnected = False
 
             if command_args is not None:
-                log.info(f"Running {command_args}")
-                subprocess.run(command_args)
+                run_command(command_args)
             else:
                 find_and_stop_server_process(server_log_path, args.stop_timeout)
 
         time.sleep(args.monitor_interval)
+
+    stop_tail(tail)
 
 
 if __name__ == '__main__':
