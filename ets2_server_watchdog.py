@@ -15,7 +15,7 @@ import types
 import psutil
 
 
-__version__ = '0.4.0'
+__version__ = '0.5.0'
 
 log = logging.getLogger('ets2-server-watchdog')
 
