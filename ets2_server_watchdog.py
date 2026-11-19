@@ -108,7 +108,7 @@ def main() -> None:
     )
     parser.add_argument(
         '--stop-timeout',
-        default=5.0,
+        default=10.0,
         type=float,
         help='Time in seconds for the server to stop gracefully before being killed',
         metavar='<sec>'

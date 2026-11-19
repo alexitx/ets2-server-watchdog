@@ -107,7 +107,7 @@ The server log file is in the `Euro Truck Simulator 2` home directory, which is 
 | `--server-log`        |         | Yes      | Server log file                                                                                     |
 | `--hang-timeout`      | `3.0`   | No       | Time in seconds for the server to hang on initialization before being killed                        |
 | `--reconnect-timeout` | `300.0` | No       | Time in seconds for the server to reconnect to Steam before being stopped                           |
-| `--stop-timeout`      | `5.0`   | No       | Time in seconds for the server to stop gracefully before being killed                               |
+| `--stop-timeout`      | `10.0`  | No       | Time in seconds for the server to stop gracefully before being killed                               |
 | `--monitor-interval`  | `0.25`  | No       | Interval in seconds for monitoring log line changes; Should be < other timeout values, usually < 1s |
 | `--command`           |         | No       | Custom command to run instead of finding and stopping the server process                            |
 
